@@ -1,0 +1,78 @@
+services:
+  control-ui:
+    build:
+      context: ./control-ui
+    container_name: mirror-control-ui
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./config:/workspace/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - CONFIG_DIR=/workspace/config
+      - APT_SERVICE=ubuntu-mirror
+      - RPM_SERVICE=rpm-mirror
+      - ARCH_SERVICE=arch-mirror
+    restart: unless-stopped
+
+  # WARNING:
+  # - Starting this service triggers an immediate apt-mirror run.
+  # - Initial sync can be multi-terabyte depending on enabled Ubuntu suites/components.
+  # - Recurring sync runs every 6 hours via cron.
+  ubuntu-mirror:
+    image: ubuntu:22.04
+    container_name: ubuntu-mirror
+    volumes:
+      - ./config/apt-mirror.list:/etc/apt/mirror.list:ro
+      - ./config/schedules.env:/etc/mirror-schedules.env:ro
+      - ./data:/mirror
+      - ./apt-entrypoint.sh:/usr/local/bin/apt-entrypoint.sh:ro
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=America/Denver
+    command: /bin/bash /usr/local/bin/apt-entrypoint.sh
+    restart: unless-stopped
+
+  # WARNING:
+  # - Starting this service triggers an immediate reposync + metadata rebuild.
+  # - Initial RPM mirror sync can be very large and network intensive.
+  # - Recurring sync runs every 6 hours via cron.
+  rpm-mirror:
+    image: almalinux:9
+    container_name: rpm-mirror
+    environment:
+      - TZ=America/Denver
+    volumes:
+      - ./config/rpm:/etc/yum.repos.d:ro
+      - ./config/schedules.env:/etc/mirror-schedules.env:ro
+      - ./data:/mirror
+      - ./rpm-entrypoint.sh:/usr/local/bin/rpm-entrypoint.sh:ro
+    command: /bin/bash /usr/local/bin/rpm-entrypoint.sh
+    restart: unless-stopped
+
+  # WARNING:
+  # - Starting this service triggers an immediate rsync of Arch repositories.
+  # - Initial sync can be multiple hundred GBs depending on enabled repos.
+  # - Recurring sync runs every 6 hours via cron (configurable in schedules.env).
+  arch-mirror:
+    image: alpine:3.20
+    container_name: arch-mirror
+    environment:
+      - TZ=America/Denver
+    volumes:
+      - ./config/schedules.env:/etc/mirror-schedules.env:ro
+      - ./data:/mirror
+      - ./arch-entrypoint.sh:/usr/local/bin/arch-entrypoint.sh:ro
+    command: /bin/sh /usr/local/bin/arch-entrypoint.sh
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: mirror-nginx
+    ports:
+      - "8090:80"
+    volumes:
+      - ./data:/mirror:ro
+      - ./config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/www/index.html:/usr/share/nginx/html/index.html:ro
+    restart: unless-stopped

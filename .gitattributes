@@ -1,0 +1,11 @@
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.env text eol=lf
+*.repo text eol=lf
+*.list text eol=lf
+*.md text=auto
+*.py text=auto
+*.html text=auto
+*.yml text=auto
+*.yaml text=auto

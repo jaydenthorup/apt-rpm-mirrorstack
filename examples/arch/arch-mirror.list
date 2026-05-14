@@ -1,0 +1,9 @@
+# Arch Linux rsync mirror source (informational)
+# Reference: https://wiki.archlinux.org/title/Mirroring
+
+# Default upstream used by this project:
+rsync://ftp.acc.umu.se/mirror/archlinux/
+
+# Mirrors into a dedicated local target with:
+# rsync -av --delete --no-o --no-g rsync://ftp.acc.umu.se/mirror/archlinux/ /mirror/arch/
+

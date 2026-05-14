@@ -1,0 +1,14 @@
+# RHEL/UBI example
+# NOTE: Access to Red Hat CDN content usually requires valid subscription/entitlement.
+
+[rhel-9-baseos-rpms]
+name=RHEL 9 BaseOS (example)
+baseurl=https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+enabled=0
+gpgcheck=1
+
+[rhel-9-appstream-rpms]
+name=RHEL 9 AppStream (example)
+baseurl=https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os
+enabled=0
+gpgcheck=1

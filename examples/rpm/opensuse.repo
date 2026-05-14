@@ -1,0 +1,11 @@
+[opensuse-leap-15_6-oss]
+name=openSUSE Leap 15.6 OSS
+baseurl=https://download.opensuse.org/distribution/leap/15.6/repo/oss/
+enabled=1
+gpgcheck=0
+
+[opensuse-leap-15_6-update-oss]
+name=openSUSE Leap 15.6 Update OSS
+baseurl=https://download.opensuse.org/update/leap/15.6/oss/
+enabled=1
+gpgcheck=0

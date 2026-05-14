@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mirror Control</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; background: #111827; color: #e5e7eb; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    h1 { margin: 0 0 16px; font-size: 1.4rem; color: #f9fafb; }
+    h2 { margin: 0 0 12px; font-size: 1rem; color: #d1d5db; text-transform: uppercase; letter-spacing: 0.05em; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { background: #1f2937; border: 1px solid #374151; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    textarea { width: 100%; min-height: 280px; background: #0f172a; color: #e5e7eb; border: 1px solid #374151; border-radius: 6px; padding: 8px; font-family: Consolas, monospace; font-size: 13px; resize: vertical; }
+    select, input { background: #0f172a; color: #e5e7eb; border: 1px solid #374151; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    .logs { min-height: 340px; max-height: 500px; white-space: pre-wrap; overflow-y: auto; background: #020617; border: 1px solid #374151; border-radius: 6px; padding: 8px; font-family: Consolas, monospace; font-size: 12px; }
+
+    /* Buttons */
+    button { cursor: pointer; border-radius: 6px; padding: 6px 14px; font-size: 13px; border: 1px solid transparent; transition: opacity 0.15s; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:not(:disabled):hover { opacity: 0.85; }
+    .btn-primary   { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+    .btn-secondary { background: #374151; color: #e5e7eb; border-color: #4b5563; }
+    .btn-success   { background: #16a34a; color: #fff; border-color: #15803d; }
+    .btn-warning   { background: #d97706; color: #fff; border-color: #b45309; }
+
+    /* Status badges */
+    .status-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    .badge-running { background: #14532d; color: #4ade80; border: 1px solid #16a34a; }
+    .badge-stopped { background: #1f2937; color: #6b7280; border: 1px solid #374151; }
+    .badge-error   { background: #450a0a; color: #f87171; border: 1px solid #dc2626; }
+    .badge-unknown { background: #1c1917; color: #a8a29e; border: 1px solid #44403c; }
+    .badge::before { content: "●"; font-size: 8px; }
+
+    /* Toast notifications */
+    #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+    .toast { padding: 10px 16px; border-radius: 6px; font-size: 13px; max-width: 360px; animation: slideIn 0.2s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .toast-success { background: #14532d; color: #4ade80; border: 1px solid #16a34a; }
+    .toast-error   { background: #450a0a; color: #f87171; border: 1px solid #dc2626; }
+    .toast-info    { background: #1e3a5f; color: #93c5fd; border: 1px solid #2563eb; }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    label { font-size: 13px; color: #9ca3af; white-space: nowrap; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid #374151; margin-bottom: 14px; }
+    .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 7px 16px; font-size: 13px; color: #9ca3af; cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+    .tab-btn:hover { color: #e5e7eb; }
+    .tab-btn.active { color: #60a5fa; border-bottom-color: #2563eb; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    textarea[readonly] { opacity: 0.6; cursor: default; }
+    .lock-bar { display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:6px 10px; background:#0f172a; border:1px solid #374151; border-radius:6px; font-size:12px; color:#9ca3af; }
+    .lock-bar .lock-msg { flex:1; }
+
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+  <div class="container">
+    <h1>Mirror Control</h1>
+
+    <!-- Status + Actions -->
+    <div class="card">
+      <div class="row" style="margin-bottom: 12px;">
+        <button id="runApt" class="btn-primary">▶ Run APT Sync</button>
+        <button id="runRpm" class="btn-primary">▶ Run RPM Sync</button>
+        <button id="runArch" class="btn-primary">▶ Run Arch Sync</button>
+        <button id="exportConfig" class="btn-secondary">↓ Export Config</button>
+        <button id="refreshStatus" class="btn-secondary" style="margin-left: auto;">↺ Refresh</button>
+      </div>
+      <div class="status-bar" id="status-bar">
+        <span style="color:#6b7280; font-size:13px;">Loading status…</span>
+      </div>
+    </div>
+
+    <!-- Schedules -->
+    <div class="card">
+      <h2>Sync Schedules</h2>
+      <div class="row">
+        <label for="aptSchedule">APT cron</label>
+        <input id="aptSchedule" placeholder="0 */6 * * *" style="min-width: 180px;" />
+        <label for="rpmSchedule">RPM cron</label>
+        <input id="rpmSchedule" placeholder="15 */6 * * *" style="min-width: 180px;" />
+        <label for="archSchedule">Arch cron</label>
+        <input id="archSchedule" placeholder="30 */6 * * *" style="min-width: 180px;" />
+        <button id="saveSchedules" class="btn-success">Save &amp; Apply</button>
+      </div>
+    </div>
+
+    <!-- Config editors -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="apt">APT Config</button>
+        <button class="tab-btn" data-tab="rpm">RPM Config</button>
+        <button class="tab-btn" data-tab="nginx">NGINX Config</button>
+      </div>
+
+      <div id="tab-apt" class="tab-panel active">
+        <div class="lock-bar">
+          <span class="lock-msg">🔒 Read-only — apt-mirror.list</span>
+          <button class="btn-secondary edit-toggle" data-target="aptContent" data-save="saveApt">Edit</button>
+        </div>
+        <div class="row">
+          <button id="saveApt" class="btn-success" disabled>Save</button>
+          <button id="loadApt" class="btn-secondary">Reload</button>
+        </div>
+        <textarea id="aptContent" spellcheck="false" readonly></textarea>
+      </div>
+
+      <div id="tab-rpm" class="tab-panel">
+        <div class="lock-bar">
+          <span class="lock-msg">🔒 Read-only — .repo files in config/rpm/</span>
+          <button class="btn-secondary edit-toggle" data-target="rpmContent" data-save="saveRpm">Edit</button>
+        </div>
+        <div class="row">
+          <select id="rpmFile" style="flex:1; min-width:0;"></select>
+          <input id="newRpmFile" placeholder="new-name.repo" style="width:140px;" />
+          <button id="createRpmFile" class="btn-secondary">New</button>
+        </div>
+        <div class="row">
+          <button id="saveRpm" class="btn-success" disabled>Save</button>
+          <button id="loadRpm" class="btn-secondary">Reload</button>
+        </div>
+        <textarea id="rpmContent" spellcheck="false" readonly></textarea>
+      </div>
+
+      <div id="tab-nginx" class="tab-panel">
+        <div class="lock-bar">
+          <span class="lock-msg">🔒 Read-only — nginx.conf (syntax validated on save)</span>
+          <button class="btn-secondary edit-toggle" data-target="nginxContent" data-save="saveNginx">Edit</button>
+        </div>
+        <div class="row">
+          <button id="saveNginx" class="btn-success" disabled>Save &amp; Reload NGINX</button>
+          <button id="loadNginx" class="btn-secondary">Reload</button>
+        </div>
+        <textarea id="nginxContent" spellcheck="false" readonly></textarea>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card">
+      <h2>Logs</h2>
+      <div class="row">
+        <select id="logTarget">
+          <option value="apt">APT mirror</option>
+          <option value="rpm">RPM mirror</option>
+          <option value="arch">Arch mirror</option>
+        </select>
+        <label for="tailLines">Last</label>
+        <input id="tailLines" value="10" style="width: 72px;" />
+        <label>lines</label>
+        <button id="refreshLogs" class="btn-secondary">Refresh</button>
+        <button id="toggleLogs" class="btn-secondary">Pause</button>
+      </div>
+      <div id="logs" class="logs"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Utilities ─────────────────────────────────────────────────────────────
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      const ct = res.headers.get("content-type") || "";
+      const body = ct.includes("application/json") ? await res.json() : await res.text();
+      if (!res.ok) throw new Error(body?.error || JSON.stringify(body) || `HTTP ${res.status}`);
+      return body;
+    }
+
+    function toast(message, type = "info", duration = 3500) {
+      const el = document.createElement("div");
+      el.className = `toast toast-${type}`;
+      el.textContent = message;
+      document.getElementById("toast-container").appendChild(el);
+      setTimeout(() => el.remove(), duration);
+    }
+
+    function withBusy(btn, fn) {
+      return async (...args) => {
+        const orig = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "…";
+        try { await fn(...args); } finally {
+          btn.disabled = false;
+          btn.textContent = orig;
+        }
+      };
+    }
+
+    // ── Status ────────────────────────────────────────────────────────────────
+
+    function badgeClass(state) {
+      if (state === "running") return "badge-running";
+      if (state === "exited" || state === "dead") return "badge-stopped";
+      if (state === "error") return "badge-error";
+      return "badge-unknown";
+    }
+
+    const SERVICE_NAMES = { "ubuntu-mirror": "APT (Ubuntu)", "rpm-mirror": "RPM (AlmaLinux)", "arch-mirror": "Arch Linux" };
+
+    async function refreshStatus() {
+      try {
+        const data = await api("/api/status");
+        document.getElementById("status-bar").innerHTML = Object.entries(data)
+          .map(([svc, state]) =>
+            `<span class="badge ${badgeClass(state)}">${SERVICE_NAMES[svc] || svc} — ${state}</span>`)
+          .join("");
+      } catch (err) {
+        document.getElementById("status-bar").innerHTML =
+          `<span class="badge badge-error">Status error: ${err.message}</span>`;
+      }
+    }
+
+    // ── Schedules ─────────────────────────────────────────────────────────────
+
+    async function loadSchedules() {
+      const data = await api("/api/schedule");
+      document.getElementById("aptSchedule").value = data.apt || "";
+      document.getElementById("rpmSchedule").value = data.rpm || "";
+      document.getElementById("archSchedule").value = data.arch || "";
+    }
+
+    async function saveSchedules() {
+      const apt = document.getElementById("aptSchedule").value.trim();
+      const rpm = document.getElementById("rpmSchedule").value.trim();
+      const arch = document.getElementById("archSchedule").value.trim();
+      const data = await api("/api/schedule", { method: "PUT", body: JSON.stringify({ apt, rpm, arch, applyNow: true }) });
+      if (data.applied === false && data.errors) {
+        toast(`Saved, but apply errors: ${JSON.stringify(data.errors)}`, "error", 6000);
+      } else {
+        toast("Schedules saved and applied.", "success");
+      }
+    }
+
+    // ── APT config ────────────────────────────────────────────────────────────
+
+    async function loadApt() {
+      const data = await api("/api/config/apt");
+      document.getElementById("aptContent").value = data.content;
+    }
+
+    async function saveApt() {
+      const content = document.getElementById("aptContent").value;
+      await api("/api/config/apt", { method: "PUT", body: JSON.stringify({ content }) });
+      toast("APT config saved.", "success");
+    }
+
+    // ── NGINX config ──────────────────────────────────────────────────────────
+
+    async function loadNginx() {
+      const data = await api("/api/config/nginx");
+      document.getElementById("nginxContent").value = data.content;
+    }
+
+    async function saveNginx() {
+      const content = document.getElementById("nginxContent").value;
+      const data = await api("/api/config/nginx", { method: "PUT", body: JSON.stringify({ content }) });
+      if (data.reloaded) {
+        toast("NGINX config saved and reloaded.", "success");
+      } else {
+        toast(`Saved, but reload failed: ${data.reload_error}`, "error", 6000);
+      }
+    }
+
+    // ── RPM config ────────────────────────────────────────────────────────────
+
+    async function loadRpmFiles() {
+      const data = await api("/api/config/rpm");
+      const select = document.getElementById("rpmFile");
+      const current = select.value;
+      select.innerHTML = "";
+      const files = data.files.length ? data.files : ["almalinux.repo"];
+      for (const file of files) {
+        const opt = document.createElement("option");
+        opt.value = opt.textContent = file;
+        select.appendChild(opt);
+      }
+      if (current && [...select.options].some(o => o.value === current)) select.value = current;
+    }
+
+    async function loadRpm() {
+      const file = document.getElementById("rpmFile").value;
+      const data = await api(`/api/config/rpm/${encodeURIComponent(file)}`);
+      document.getElementById("rpmContent").value = data.content;
+    }
+
+    async function saveRpm() {
+      const file = document.getElementById("rpmFile").value;
+      const content = document.getElementById("rpmContent").value;
+      await api(`/api/config/rpm/${encodeURIComponent(file)}`, { method: "PUT", body: JSON.stringify({ content }) });
+      toast(`${file} saved.`, "success");
+      await loadRpmFiles();
+    }
+
+    function createOrUseRpmFile() {
+      const input = document.getElementById("newRpmFile");
+      const value = input.value.trim();
+      if (!value) return;
+      const name = value.endsWith(".repo") ? value : `${value}.repo`;
+      const select = document.getElementById("rpmFile");
+      if (![...select.options].some(o => o.value === name)) {
+        const opt = document.createElement("option");
+        opt.value = opt.textContent = name;
+        select.appendChild(opt);
+      }
+      select.value = name;
+      input.value = "";
+      document.getElementById("rpmContent").value = "";
+    }
+
+    // ── Jobs ──────────────────────────────────────────────────────────────────
+
+    async function runJob(target) {
+      await api("/api/jobs/run", { method: "POST", body: JSON.stringify({ target }) });
+      toast(`${target.toUpperCase()} sync started.`, "info");
+      setTimeout(refreshStatus, 2000);
+    }
+
+    // ── Logs ──────────────────────────────────────────────────────────────────
+
+    async function refreshLogs() {
+      const target = document.getElementById("logTarget").value;
+      const tail = document.getElementById("tailLines").value || "10";
+      const data = await api(`/api/logs/${target}?tail=${encodeURIComponent(tail)}`);
+      const el = document.getElementById("logs");
+      const atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 40;
+      el.textContent = data.logs || "(no logs)";
+      if (atBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    let logRefreshTimer = null;
+    let logRefreshEnabled = true;
+
+    function startLogAutoRefresh() {
+      clearInterval(logRefreshTimer);
+      if (logRefreshEnabled) {
+        logRefreshTimer = setInterval(() => refreshLogs().catch(() => {}), 5000);
+      }
+    }
+
+    function setLogRefreshEnabled(enabled) {
+      logRefreshEnabled = enabled;
+      const btn = document.getElementById("toggleLogs");
+      btn.textContent = enabled ? "Pause" : "Resume";
+      btn.className = enabled ? "btn-secondary" : "btn-warning";
+      startLogAutoRefresh();
+    }
+
+    // ── Export ────────────────────────────────────────────────────────────────
+
+    async function exportConfig() {
+      const res = await fetch("/api/config/export");
+      const text = await res.text();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      a.download = "mirror-config-snapshot.json";
+      a.click();
+    }
+
+    // ── Config tabs ──────────────────────────────────────────────────────────
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `tab-${tab}`));
+      });
+    });
+
+    // ── Edit lock toggles ─────────────────────────────────────────────────────
+
+    document.querySelectorAll(".edit-toggle").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const textarea = document.getElementById(btn.dataset.target);
+        const saveBtn  = document.getElementById(btn.dataset.save);
+        const locked   = textarea.hasAttribute("readonly");
+        const lockBar  = btn.closest(".lock-bar");
+        const msg      = lockBar.querySelector(".lock-msg");
+        const baseMsg  = msg.textContent.replace(/^(🔒|✏️)\s*/, "");
+        if (locked) {
+          textarea.removeAttribute("readonly");
+          saveBtn.disabled = false;
+          btn.textContent = "Lock";
+          btn.className = "btn-warning edit-toggle";
+          msg.textContent = "✏️ Editing — " + baseMsg.replace(/^(Read-only — |Editing — )/, "");
+        } else {
+          textarea.setAttribute("readonly", "");
+          saveBtn.disabled = true;
+          btn.textContent = "Edit";
+          btn.className = "btn-secondary edit-toggle";
+          msg.textContent = "🔒 Read-only — " + baseMsg.replace(/^(Read-only — |Editing — )/, "");
+        }
+      });
+    });
+
+    // ── Wire up ───────────────────────────────────────────────────────────────
+
+    const $ = id => document.getElementById(id);
+
+    $("refreshStatus").addEventListener("click", refreshStatus);
+    $("runApt").addEventListener("click", withBusy($("runApt"), () => runJob("apt")));
+    $("runRpm").addEventListener("click", withBusy($("runRpm"), () => runJob("rpm")));
+    $("runArch").addEventListener("click", withBusy($("runArch"), () => runJob("arch")));
+    $("exportConfig").addEventListener("click", exportConfig);
+
+    $("saveSchedules").addEventListener("click", withBusy($("saveSchedules"), saveSchedules));
+
+    $("loadApt").addEventListener("click", withBusy($("loadApt"), loadApt));
+    $("saveApt").addEventListener("click", withBusy($("saveApt"), saveApt));
+    $("loadNginx").addEventListener("click", withBusy($("loadNginx"), loadNginx));
+    $("saveNginx").addEventListener("click", withBusy($("saveNginx"), saveNginx));
+    $("loadRpm").addEventListener("click", withBusy($("loadRpm"), loadRpm));
+    $("saveRpm").addEventListener("click", withBusy($("saveRpm"), saveRpm));
+    $("createRpmFile").addEventListener("click", createOrUseRpmFile);
+
+    $("refreshLogs").addEventListener("click", withBusy($("refreshLogs"), refreshLogs));
+    $("toggleLogs").addEventListener("click", () => setLogRefreshEnabled(!logRefreshEnabled));
+    $("logTarget").addEventListener("change", () => refreshLogs().catch(() => {}));
+    $("tailLines").addEventListener("change", () => refreshLogs().catch(() => {}));
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    (async () => {
+      await Promise.allSettled([refreshStatus(), loadApt(), loadNginx(), loadRpmFiles(), loadSchedules()]);
+      await loadRpm().catch(() => {});
+      await refreshLogs().catch(() => {});
+      startLogAutoRefresh();
+    })();
+  </script>
+</body>
+</html>

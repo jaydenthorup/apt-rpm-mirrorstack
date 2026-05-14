@@ -1,0 +1,23 @@
+# Mirror payload
+data/*
+!data/.gitkeep
+
+# Local packaging artifacts
+deploy-package/
+*.zip
+meta-release.txt
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+dist/
+build/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/

@@ -1,0 +1,37 @@
+
+set base_path    /mirror/apt
+set nthreads     5
+set _tilde 0
+
+# LIMIT ARCHITECTURES (PRODUCTION MIRROR PROFILE: AMD64 BINARIES + SOURCE)
+set defaultarch amd64
+
+# MIRROR SOURCE PACKAGES
+set deb-src true
+
+# UBUNTU LATEST SUPPORTED RELEASES – AMD64 ONLY
+deb http://archive.ubuntu.com/ubuntu focal main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu focal-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu focal-security main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu focal-backports main restricted universe multiverse
+
+deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+
+deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu noble-backports main restricted universe multiverse
+
+deb http://archive.ubuntu.com/ubuntu questing main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu questing-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu questing-security main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu questing-backports main restricted universe multiverse
+
+# PROXMOX VE (BOOKWORM)
+deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription
+
+clean http://archive.ubuntu.com/ubuntu
+clean http://download.proxmox.com/debian/pve

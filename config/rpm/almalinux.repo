@@ -1,0 +1,24 @@
+
+[almalinux-baseos]
+name=AlmaLinux 9 BaseOS
+baseurl=https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/
+enabled=1
+gpgcheck=0
+
+[almalinux-appstream]
+name=AlmaLinux 9 AppStream
+baseurl=https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
+enabled=1
+gpgcheck=0
+
+[almalinux-crb]
+name=AlmaLinux 9 CRB
+baseurl=https://repo.almalinux.org/almalinux/9/CRB/x86_64/os/
+enabled=1
+gpgcheck=0
+
+[almalinux-extras]
+name=AlmaLinux 9 Extras
+baseurl=https://repo.almalinux.org/almalinux/9/extras/x86_64/os/
+enabled=1
+gpgcheck=0
