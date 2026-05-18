@@ -15,6 +15,7 @@ if [ -f /etc/mirror-schedules.env ]; then
 fi
 
 ARCH_CRON_SCHEDULE="${ARCH_CRON_SCHEDULE:-30 */6 * * *}"
+ARCH_CRON_SCHEDULE="$(printf '%s' "$ARCH_CRON_SCHEDULE" | tr -d '\r' | sed "s/^'//;s/'$//;s/^\"//;s/\"$//")"
 ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://mirror.accum.se/mirror/archlinux}"
 
 MIN_FREE_KIB=104857600
