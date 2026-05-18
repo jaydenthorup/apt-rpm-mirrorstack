@@ -35,29 +35,41 @@ cat >/usr/local/bin/run-arch-rsync-logged.sh <<'EOF'
 #!/bin/sh
 set -eu
 
-# Mirror a complete Arch tree into a dedicated target directory.
-# Keep /mirror/arch reserved for Arch content because --delete will remove
-# anything that does not exist on the source mirror.
+TS() { date '+%Y-%m-%d %H:%M:%S'; }
 ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://ftp.acc.umu.se/mirror/archlinux}"
 root="${ARCH_RSYNC_SOURCE%/}"
 
-echo "Syncing Arch mirror tree from ${root}/"
+echo "[ARCH-SYNC] START $(TS) - source: ${root}/"
 rsync -av --delete --no-o --no-g --delay-updates --safe-links --no-motd "${root}/" /mirror/arch/
+echo "[ARCH-SYNC] DONE $(TS)"
 
 exit 0
 EOF
 chmod +x /usr/local/bin/run-arch-rsync-logged.sh
+
+# Logged flock wrapper: prints SKIPPED when a run is already in progress.
+cat >/usr/local/bin/flock-arch-rsync.sh <<'EOF'
+#!/bin/sh
+TS() { date '+%Y-%m-%d %H:%M:%S'; }
+flock -n /tmp/archrsync.lock -c /usr/local/bin/run-arch-rsync-logged.sh
+rc=$?
+if [ $rc -eq 1 ]; then
+    echo "[ARCH-SYNC] SKIPPED $(TS) - sync already running"
+fi
+exit $rc
+EOF
+chmod +x /usr/local/bin/flock-arch-rsync.sh
 
 # Ensure lock file exists with proper permissions before flock tries to use it
 touch "${LOCK_FILE}"
 chmod 666 "${LOCK_FILE}"
 
 # Start an initial rsync under flock in the background if lock is free.
-flock -n "${LOCK_FILE}" -c "/usr/local/bin/run-arch-rsync-logged.sh" &
+/usr/local/bin/flock-arch-rsync.sh &
 
 # Install cron entry with a flock wrapper to avoid overlapping scheduled runs.
 mkdir -p /etc/crontabs
-printf '%s\n' "${ARCH_CRON_SCHEDULE} flock -n ${LOCK_FILE} -c /usr/local/bin/run-arch-rsync-logged.sh" > /etc/crontabs/root
+printf '%s\n' "${ARCH_CRON_SCHEDULE} /usr/local/bin/flock-arch-rsync.sh" > /etc/crontabs/root
 
 # Start cron in foreground so docker logs capture it
 if command -v crond >/dev/null 2>&1; then

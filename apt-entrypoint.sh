@@ -46,6 +46,9 @@ cat >/usr/local/bin/run-apt-mirror-logged.sh <<'EOF'
 #!/bin/bash
 set -u
 
+TS() { date '+%Y-%m-%d %H:%M:%S'; }
+echo "[APT-SYNC] START $(TS)"
+
 tail_pid=""
 
 /usr/bin/apt-mirror &
@@ -69,18 +72,36 @@ if [ -n "$tail_pid" ]; then
 	wait "$tail_pid" 2>/dev/null || true
 fi
 
+if [ "$status" -eq 0 ]; then
+	echo "[APT-SYNC] DONE $(TS) (exit 0)"
+else
+	echo "[APT-SYNC] FAILED $(TS) (exit $status)"
+fi
 exit "$status"
 EOF
 chmod +x /usr/local/bin/run-apt-mirror-logged.sh
 
+# Logged flock wrapper: prints SKIPPED when a run is already in progress.
+cat >/usr/local/bin/flock-apt-mirror.sh <<'EOF'
+#!/bin/bash
+TS() { date '+%Y-%m-%d %H:%M:%S'; }
+/usr/bin/flock -n /var/lock/aptmirror.lock -c "/usr/local/bin/run-apt-mirror-logged.sh"
+rc=$?
+if [ $rc -eq 1 ]; then
+	echo "[APT-SYNC] SKIPPED $(TS) - sync already running"
+fi
+exit $rc
+EOF
+chmod +x /usr/local/bin/flock-apt-mirror.sh
+
 # Start an initial apt-mirror under flock in the background if lock is free.
-/usr/bin/flock -n /var/lock/aptmirror.lock -c "/usr/local/bin/run-apt-mirror-logged.sh" &
+/usr/local/bin/flock-apt-mirror.sh &
 
 # Write the cron file with a flock wrapper to avoid overlapping scheduled runs.
 cat >/etc/cron.d/apt-mirror <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-${APT_CRON_SCHEDULE} root /usr/bin/flock -n /var/lock/aptmirror.lock -c "/usr/local/bin/run-apt-mirror-logged.sh" >> /proc/1/fd/1 2>> /proc/1/fd/2
+${APT_CRON_SCHEDULE} root /usr/local/bin/flock-apt-mirror.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
 CRON
 
 chmod 0644 /etc/cron.d/apt-mirror || true

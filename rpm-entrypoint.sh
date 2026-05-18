@@ -30,14 +30,19 @@ cat >/usr/local/bin/run-rpm-sync.sh <<'EOF'
 #!/bin/bash
 set -eu
 
+TS() { date '+%Y-%m-%d %H:%M:%S'; }
+echo "[RPM-SYNC] START $(TS)"
+
 sync_repo() {
 	local repoid="$1"
 	local target="$2"
+	echo "[RPM-SYNC] syncing ${repoid}"
 	/usr/bin/reposync --download-metadata --delete --norepopath --repoid="${repoid}" --download-path="${target}"
 }
 
 refresh_repo() {
 	local target="$1"
+	echo "[RPM-SYNC] rebuilding repodata: ${target}"
 	if [ -d "${target}/.repodata" ]; then
 		rm -rf "${target}/.repodata"
 	fi
@@ -53,18 +58,33 @@ refresh_repo /mirror/alma/9/BaseOS/x86_64/os
 refresh_repo /mirror/alma/9/AppStream/x86_64/os
 refresh_repo /mirror/alma/9/CRB/x86_64/os
 refresh_repo /mirror/alma/9/extras/x86_64/os
+
+echo "[RPM-SYNC] DONE $(TS)"
 EOF
 chmod +x /usr/local/bin/run-rpm-sync.sh
 
+# Logged flock wrapper: prints SKIPPED when a run is already in progress.
+cat >/usr/local/bin/flock-rpm-sync.sh <<'EOF'
+#!/bin/bash
+TS() { date '+%Y-%m-%d %H:%M:%S'; }
+/usr/bin/flock -n /var/lock/reposync.lock -c "/usr/local/bin/run-rpm-sync.sh"
+rc=$?
+if [ $rc -eq 1 ]; then
+	echo "[RPM-SYNC] SKIPPED $(TS) - sync already running"
+fi
+exit $rc
+EOF
+chmod +x /usr/local/bin/flock-rpm-sync.sh
+
 # Start an initial reposync+createrepo under flock in the background if lock is free.
 # This prevents cron from starting a second concurrent run while the initial sync runs.
-/usr/bin/flock -n /var/lock/reposync.lock -c "/usr/local/bin/run-rpm-sync.sh" &
+/usr/local/bin/flock-rpm-sync.sh &
 
 # Write the cron file with a flock wrapper to avoid overlapping scheduled runs.
 cat >/etc/cron.d/reposync <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-${RPM_CRON_SCHEDULE} root /usr/bin/flock -n /var/lock/reposync.lock -c "/usr/local/bin/run-rpm-sync.sh" >> /proc/1/fd/1 2>> /proc/1/fd/2
+${RPM_CRON_SCHEDULE} root /usr/local/bin/flock-rpm-sync.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
 CRON
 
 chmod 0644 /etc/cron.d/reposync || true
