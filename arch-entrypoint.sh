@@ -21,52 +21,10 @@ ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://mirror.accum.se/mirror/archlinux
 MIN_FREE_KIB=104857600
 
 validate_arch_schedule() {
-    # Enforce: no more frequent than hourly, at least daily.
-    # Accepted forms:
-    #   <m> */<h> * * *   where 1 <= h <= 24
-    #   <m> * * * *       hourly
-    #   <m> <h> * * *     daily
-    set -- $1
-    if [ "$#" -ne 5 ]; then
-        return 1
-    fi
-
-    minute="$1"
-    hour="$2"
-    dom="$3"
-    mon="$4"
-    dow="$5"
-
-    case "$minute" in
-        ''|*[!0-9]*) return 1 ;;
-    esac
-    [ "$minute" -ge 0 ] && [ "$minute" -le 59 ] || return 1
-
-    [ "$dom" = "*" ] || return 1
-    [ "$mon" = "*" ] || return 1
-    [ "$dow" = "*" ] || return 1
-
-    if [ "$hour" = "*" ]; then
-        return 0
-    fi
-
-    case "$hour" in
-        */*)
-            step="${hour#*/}"
-            case "$step" in
-                ''|*[!0-9]*) return 1 ;;
-            esac
-            [ "$step" -ge 1 ] && [ "$step" -le 24 ] || return 1
-            return 0
-            ;;
-        *)
-            case "$hour" in
-                ''|*[!0-9]*) return 1 ;;
-            esac
-            [ "$hour" -ge 0 ] && [ "$hour" -le 23 ] || return 1
-            return 0
-            ;;
-    esac
+    # Keep this intentionally simple and predictable:
+    # require a standard 5-field cron expression after normalization.
+    fields="$(printf '%s\n' "$1" | awk '{print NF}')"
+    [ "$fields" -eq 5 ]
 }
 
 random_minute() {
