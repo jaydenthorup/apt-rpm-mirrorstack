@@ -77,7 +77,7 @@ services:
     container_name: arch-mirror
     environment:
       - TZ=America/Denver
-      - ARCH_RSYNC_SOURCE=rsync://rsync.archlinux.org/archlinux
+      - ARCH_RSYNC_SOURCE=rsync://mirror.accum.se/mirror/archlinux
     volumes:
       - ./config/schedules.env:/etc/mirror-schedules.env:ro
       - ./data:/mirror
