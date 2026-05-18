@@ -15,7 +15,7 @@ if [ -f /etc/mirror-schedules.env ]; then
 fi
 
 ARCH_CRON_SCHEDULE="${ARCH_CRON_SCHEDULE:-30 */6 * * *}"
-ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://ftp.acc.umu.se/mirror/archlinux}"
+ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://rsync.archlinux.org/archlinux}"
 
 # Install rsync, util-linux (provides flock), and CA roots if needed.
 if ! command -v rsync >/dev/null 2>&1; then
@@ -36,7 +36,7 @@ cat >/usr/local/bin/run-arch-rsync-logged.sh <<'EOF'
 set -eu
 
 TS() { date '+%Y-%m-%d %H:%M:%S'; }
-ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://ftp.acc.umu.se/mirror/archlinux}"
+ARCH_RSYNC_SOURCE="${ARCH_RSYNC_SOURCE:-rsync://rsync.archlinux.org/archlinux}"
 root="${ARCH_RSYNC_SOURCE%/}"
 
 echo "[ARCH-SYNC] START $(TS) - source: ${root}/"
