@@ -114,14 +114,14 @@ def apply_rpm_schedule(schedule: str):
 
 
 def apply_arch_schedule(schedule: str):
-    line = f"{schedule} {ARCH_SYNC_COMMAND}"
+    line = f"SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n{schedule} {ARCH_SYNC_COMMAND} >> /proc/1/fd/1 2>> /proc/1/fd/2"
     command = [
         "docker",
         "exec",
         ARCH_SERVICE,
         "sh",
         "-lc",
-        f"printf %s\\n {shell_single_quote(line)} > /etc/cron.d/arch-rsync && chmod 0644 /etc/cron.d/arch-rsync && crontab /etc/cron.d/arch-rsync",
+        f"mkdir -p /etc/crontabs && printf %s\\n {shell_single_quote(line)} > /etc/crontabs/root && chmod 0600 /etc/crontabs/root",
     ]
     run_command(command)
 
