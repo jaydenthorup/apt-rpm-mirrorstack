@@ -12,6 +12,7 @@ if [ -f /etc/mirror-schedules.env ]; then
 fi
 
 RPM_CRON_SCHEDULE="${RPM_CRON_SCHEDULE:-15 */6 * * *}"
+RPM_CRON_SCHEDULE="$(printf '%s' "$RPM_CRON_SCHEDULE" | tr -d '\r' | sed "s/^'//;s/'$//;s/^\"//;s/\"$//")"
 
 # Disable SSL verification for AlmaLinux repos (TLS interception in restricted networks)
 mkdir -p /etc/dnf/vars
@@ -61,11 +62,12 @@ chmod +x /usr/local/bin/run-rpm-sync.sh
 
 # Write the cron file with a flock wrapper to avoid overlapping scheduled runs.
 cat >/etc/cron.d/reposync <<CRON
-${RPM_CRON_SCHEDULE} /usr/bin/flock -n /var/lock/reposync.lock -c "/usr/local/bin/run-rpm-sync.sh"
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+${RPM_CRON_SCHEDULE} root /usr/bin/flock -n /var/lock/reposync.lock -c "/usr/local/bin/run-rpm-sync.sh" >> /proc/1/fd/1 2>> /proc/1/fd/2
 CRON
 
 chmod 0644 /etc/cron.d/reposync || true
-crontab /etc/cron.d/reposync || true
 
 # Start crond in foreground so docker logs capture it
 exec /usr/sbin/crond -n

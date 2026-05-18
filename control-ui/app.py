@@ -88,27 +88,27 @@ def validate_cron_expression(expression: str) -> bool:
 
 
 def apply_apt_schedule(schedule: str):
-    line = f"{schedule} {APT_SYNC_COMMAND}"
+    line = f"SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n{schedule} root {APT_SYNC_COMMAND} >> /proc/1/fd/1 2>> /proc/1/fd/2"
     command = [
         "docker",
         "exec",
         APT_SERVICE,
         "sh",
         "-lc",
-        f"printf %s\\n {shell_single_quote(line)} > /etc/cron.d/apt-mirror && chmod 0644 /etc/cron.d/apt-mirror && crontab /etc/cron.d/apt-mirror",
+        f"printf %s\\n {shell_single_quote(line)} > /etc/cron.d/apt-mirror && chmod 0644 /etc/cron.d/apt-mirror",
     ]
     run_command(command)
 
 
 def apply_rpm_schedule(schedule: str):
-    line = f"{schedule} {RPM_SYNC_COMMAND}"
+    line = f"SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n{schedule} root {RPM_SYNC_COMMAND} >> /proc/1/fd/1 2>> /proc/1/fd/2"
     command = [
         "docker",
         "exec",
         RPM_SERVICE,
         "sh",
         "-lc",
-        f"printf %s\\n {shell_single_quote(line)} > /etc/cron.d/reposync && chmod 0644 /etc/cron.d/reposync && crontab /etc/cron.d/reposync",
+        f"printf %s\\n {shell_single_quote(line)} > /etc/cron.d/reposync && chmod 0644 /etc/cron.d/reposync",
     ]
     run_command(command)
 

@@ -12,6 +12,7 @@ if [ -f /etc/mirror-schedules.env ]; then
 fi
 
 APT_CRON_SCHEDULE="${APT_CRON_SCHEDULE:-0 */6 * * *}"
+APT_CRON_SCHEDULE="$(printf '%s' "$APT_CRON_SCHEDULE" | tr -d '\r' | sed "s/^'//;s/'$//;s/^\"//;s/\"$//")"
 
 # Install packages only if missing (non-fatal)
 need_install=0
@@ -77,11 +78,12 @@ chmod +x /usr/local/bin/run-apt-mirror-logged.sh
 
 # Write the cron file with a flock wrapper to avoid overlapping scheduled runs.
 cat >/etc/cron.d/apt-mirror <<CRON
-${APT_CRON_SCHEDULE} /usr/bin/flock -n /var/lock/aptmirror.lock -c "/usr/local/bin/run-apt-mirror-logged.sh"
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+${APT_CRON_SCHEDULE} root /usr/bin/flock -n /var/lock/aptmirror.lock -c "/usr/local/bin/run-apt-mirror-logged.sh" >> /proc/1/fd/1 2>> /proc/1/fd/2
 CRON
 
 chmod 0644 /etc/cron.d/apt-mirror || true
-crontab /etc/cron.d/apt-mirror || true
 
 # Start cron in foreground so docker logs capture it
 exec cron -f
