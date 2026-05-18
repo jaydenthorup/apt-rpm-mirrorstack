@@ -327,13 +327,30 @@
 
     // ── Logs ──────────────────────────────────────────────────────────────────
 
+    // Docker --timestamps prefix: 2026-05-18T12:00:01.123456789Z <message>
+    function formatDockerLogs(raw) {
+      if (!raw) return "(no logs)";
+      return raw.split("\n").map(line => {
+        const m = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) (.*)$/);
+        if (!m) return line;
+        const d = new Date(m[1]);
+        const ts = d.getFullYear() + "-" +
+          String(d.getMonth()+1).padStart(2,"0") + "-" +
+          String(d.getDate()).padStart(2,"0") + " " +
+          String(d.getHours()).padStart(2,"0") + ":" +
+          String(d.getMinutes()).padStart(2,"0") + ":" +
+          String(d.getSeconds()).padStart(2,"0");
+        return `[${ts}] ${m[2]}`;
+      }).join("\n");
+    }
+
     async function refreshLogs() {
       const target = document.getElementById("logTarget").value;
       const tail = document.getElementById("tailLines").value || "10";
       const data = await api(`/api/logs/${target}?tail=${encodeURIComponent(tail)}`);
       const el = document.getElementById("logs");
       const atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 40;
-      el.textContent = data.logs || "(no logs)";
+      el.textContent = formatDockerLogs(data.logs);
       if (atBottom) el.scrollTop = el.scrollHeight;
     }
 

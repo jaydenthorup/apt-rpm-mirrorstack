@@ -298,7 +298,7 @@ def get_logs(target: str):
         return jsonify({"error": "tail must be numeric"}), 400
 
     try:
-        result = run_command(["docker", "logs", "--tail", tail, service], check=False)
+        result = run_command(["docker", "logs", "--timestamps", "--tail", tail, service], check=False)
         output = (result.stdout or "") + (result.stderr or "")
         return jsonify({"target": target, "service": service, "logs": output})
     except Exception as e:
