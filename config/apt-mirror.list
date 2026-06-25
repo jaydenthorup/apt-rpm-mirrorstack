@@ -32,6 +32,7 @@ deb http://archive.ubuntu.com/ubuntu questing-backports main restricted universe
 
 # PROXMOX VE (BOOKWORM)
 deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription
+deb http://download.proxmox.com/debian/pve trixie pve-no-subscription
 
 clean http://archive.ubuntu.com/ubuntu
 clean http://download.proxmox.com/debian/pve
